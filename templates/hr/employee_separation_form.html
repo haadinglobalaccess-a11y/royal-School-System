@@ -1,0 +1,44 @@
+{% extends "hr/base_hr.html" %}
+
+{% block back_link %}{% endblock back_link %}
+
+{% block content %}
+<div class="card" style="max-width:600px;margin:0 auto;">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+        <div style="width:48px;height:48px;border-radius:50%;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div>
+            <div style="font-size:16px;font-weight:700;">{{ employee.full_name }}</div>
+            <div style="font-size:12px;color:var(--text-muted);">ID: {{ employee.employee_id|default:"Not assigned" }} | {{ employee.get_designation_display|default:employee.designation|default:"-" }}</div>
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label>Last Working Date *</label>
+            <input type="date" name="last_working_date" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+            <label>Reason for Leaving *</label>
+            <select name="separation_reason" class="form-control" required>
+                <option value="resignation">Resignation</option>
+                <option value="termination">Termination</option>
+                <option value="contract_end">End of Contract</option>
+                <option value="retirement">Retirement</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+
+        <div style="text-align:center;margin-top:32px;padding-top:20px;border-top:1px solid var(--border);">
+            <button type="submit" class="btn btn-danger" style="width:100%;padding:12px 40px;font-size:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/></svg>
+                Mark as Left
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

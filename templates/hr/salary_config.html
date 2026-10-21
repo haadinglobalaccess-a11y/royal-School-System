@@ -1,0 +1,122 @@
+{% extends "hr/base_hr.html" %}
+
+{% block content %}
+<div class="hr-topbar">
+    <div>
+        <h1>Salary Configuration</h1>
+        <div class="breadcrumb">HR Module / Salary Config</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Set All Salary Criteria Manually</h2>
+        <span style="font-size:11px;color:var(--text-muted);">These settings apply to all salary generation</span>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+
+        <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border);color:var(--primary);">Basic Settings</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Default Working Days / Month</label>
+                <input type="number" name="default_working_days" value="{{ config.default_working_days }}" min="1" max="31" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Max Allowed Paid Leaves / Month</label>
+                <input type="number" name="max_allowed_leaves" value="{{ config.max_allowed_leaves }}" min="0" max="10" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Late Days = 1 Half-Day Deduction</label>
+                <input type="number" name="late_deduction_per" value="{{ config.late_deduction_per }}" min="1" max="10" class="form-control">
+                <small style="color:var(--text-muted);font-size:11px;">e.g. 3 lates = 1 half-day salary deducted</small>
+            </div>
+        </div>
+
+        <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border);color:var(--primary);">Allowances (% of Basic Salary)</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Housing Allowance %</label>
+                <input type="number" name="housing_allowance_pct" value="{{ config.housing_allowance_pct }}" step="0.01" min="0" max="100" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Medical Allowance %</label>
+                <input type="number" name="medical_allowance_pct" value="{{ config.medical_allowance_pct }}" step="0.01" min="0" max="100" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Transport Allowance %</label>
+                <input type="number" name="transport_allowance_pct" value="{{ config.transport_allowance_pct }}" step="0.01" min="0" max="100" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Kids Education Allowance %</label>
+                <input type="number" name="kids_education_pct" value="{{ config.kids_education_pct }}" step="0.01" min="0" max="100" class="form-control">
+            </div>
+        </div>
+
+        <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border);color:var(--primary);">Tax & Deductions</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Tax % (on Gross Salary)</label>
+                <input type="number" name="tax_percentage" value="{{ config.tax_percentage }}" step="0.01" min="0" max="100" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Provident Fund % (of Basic)</label>
+                <input type="number" name="provident_fund_pct" value="{{ config.provident_fund_pct }}" step="0.01" min="0" max="100" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Security Deduction % (of Basic)</label>
+                <input type="number" name="security_pct" value="{{ config.security_pct }}" step="0.01" min="0" max="100" class="form-control">
+                <small style="color:var(--text-muted);font-size:11px;">Applied from 3rd month onwards</small>
+            </div>
+            <div class="form-group">
+                <label>Van/Child Deduction % (of Basic)</label>
+                <input type="number" name="van_child_pct" value="{{ config.van_child_pct }}" step="0.01" min="0" max="100" class="form-control">
+            </div>
+        </div>
+
+        <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border);color:var(--primary);">New Employee (First 2 Months)</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Security Deduction % (of Basic) — First 2 Months</label>
+                <input type="number" name="new_employee_security_pct" value="{{ config.new_employee_security_pct }}" step="0.01" min="0" max="100" class="form-control">
+                <small style="color:var(--text-muted);font-size:11px;">Leave, Late, and Security apply in first 2 months. PF, Tax, Van/Child, Bonus, Advance, Other are skipped.</small>
+            </div>
+        </div>
+
+        <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border);color:var(--primary);">Bonus</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Bonus Per Day (if 0 leaves)</label>
+                <input type="number" name="bonus_per_day" value="{{ config.bonus_per_day }}" step="0.01" min="0" class="form-control">
+                <small style="color:var(--text-muted);font-size:11px;">Fixed amount per day. Set 0 to use % instead.</small>
+            </div>
+            <div class="form-group">
+                <label>Or Bonus % (of Basic)</label>
+                <input type="number" name="bonus_percentage" value="{{ config.bonus_percentage }}" step="0.01" min="0" max="100" class="form-control">
+                <small style="color:var(--text-muted);font-size:11px;">Used only if Bonus Per Day is 0</small>
+            </div>
+        </div>
+
+        <!-- Preview -->
+        <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:14px 18px;margin:20px 0;">
+            <div style="font-size:13px;font-weight:700;color:#0d9488;margin-bottom:8px;">How It Works</div>
+            <ul style="font-size:12px;color:#0f766e;margin-left:24px;line-height:1.8;">
+                <li><strong>New Employees (First 2 Months)</strong> = Leave, Late & Security ({{ config.new_employee_security_pct }}%) apply. PF, Tax, Van/Child, Bonus skipped.</li>
+                <li><strong>Allowances</strong> = Basic Salary x Percentage / 100</li>
+                <li><strong>Per Day Salary</strong> = Basic Salary / Total Working Days</li>
+                <li><strong>Leave Deduction</strong> = (Absent - Max Allowed Leaves) x Per Day</li>
+                <li><strong>Late Deduction</strong> = Every {{ config.late_deduction_per }} lates = Half day salary</li>
+                <li><strong>Bonus</strong> = 0 absent & 0 leaves → {{ config.bonus_per_day }} per day OR {{ config.bonus_percentage }}% of basic</li>
+                <li><strong>Gross</strong> = Basic + Increment + Allowances + Bonus - Leave Ded - Late Ded</li>
+                <li><strong>Tax</strong> = Gross x {{ config.tax_percentage }}%</li>
+                <li><strong>Net</strong> = Gross - (All Deductions)</li>
+            </ul>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+            <button type="submit" class="btn btn-primary">Save Configuration</button>
+            <button type="submit" name="action" value="reset" class="btn btn-danger" onclick="return confirm('Reset all salary config to defaults? This cannot be undone.')">Reset to Defaults</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

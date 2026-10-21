@@ -1,0 +1,548 @@
+from django.db import models
+from django.conf import settings
+from academics.models import TeacherProfile
+from datetime import date
+import calendar
+
+
+class SalaryConfig(models.Model):
+    """Global salary configuration per school — all criteria manually set."""
+    CONFIG_MODE_CHOICES = (
+        ('percentage', 'Percentage'),
+        ('amount', 'Fixed Amount'),
+    )
+    school = models.OneToOneField('accounts.School', on_delete=models.CASCADE, related_name='salary_config', null=True, blank=True)
+
+    # Month/Year
+    month = models.PositiveIntegerField(default=1, help_text="Month (1-12)")
+    year = models.PositiveIntegerField(default=2026, help_text="Year")
+
+    # Basic settings
+    default_working_days = models.PositiveIntegerField(default=26, help_text="Default working days per month")
+
+    # Global config mode: percentage or fixed amount
+    config_mode = models.CharField(max_length=10, choices=CONFIG_MODE_CHOICES, default='percentage', help_text="All salary fields use percentage or fixed amount")
+
+    # Tax
+    tax_percentage = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Tax % deducted from gross")
+
+    # Allowances (percentage of basic salary OR fixed amount based on config_mode)
+    housing_allowance_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Housing allowance % of basic")
+    medical_allowance_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Medical allowance % of basic")
+    transport_allowance_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Transport allowance % of basic")
+    kids_education_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Kids education allowance % of basic")
+
+    # Bonus
+    bonus_per_day = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Bonus amount per day if 0 leaves in month")
+    bonus_percentage = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Or bonus as % of basic (if per_day=0)")
+
+    # Deductions
+    provident_fund_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="PF % of basic")
+    security_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Security deduction % of basic (normal, from 3rd month)")
+    van_child_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Van/Child deduction % of basic")
+    new_employee_security_pct = models.DecimalField(max_digits=12, decimal_places=2, default=50, help_text="Security deduction % of basic for first 2 months after joining")
+    max_allowed_leaves = models.PositiveIntegerField(default=0, help_text="Max paid leaves per month")
+
+    # Late deduction
+    late_deduction_per = models.PositiveIntegerField(default=3, help_text="Late days count as 1 half-day deduct")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Salary Config - {self.school}"
+
+    @property
+    def is_amount_mode(self):
+        return self.config_mode == 'amount'
+
+    @property
+    def housing_allowance_amount(self):
+        return self.housing_allowance_pct
+
+    def _apply(self, value, basic):
+        if self.config_mode == 'amount':
+            return float(value)
+        return float(basic) * (float(value) / 100)
+
+    def get_housing(self, basic):
+        return self._apply(self.housing_allowance_pct, basic)
+    def get_medical(self, basic):
+        return self._apply(self.medical_allowance_pct, basic)
+    def get_transport(self, basic):
+        return self._apply(self.transport_allowance_pct, basic)
+    def get_kids_education(self, basic):
+        return self._apply(self.kids_education_pct, basic)
+    def get_pf(self, basic):
+        return self._apply(self.provident_fund_pct, basic)
+    def get_security(self, basic):
+        return self._apply(self.security_pct, basic)
+    def get_van_child(self, basic):
+        return self._apply(self.van_child_pct, basic)
+    def get_tax(self, gross):
+        return self._apply(self.tax_percentage, gross)
+    def get_bonus(self, basic):
+        if self.bonus_per_day > 0:
+            return 0
+        return self._apply(self.bonus_percentage, basic)
+
+
+class EmployeeSalary(models.Model):
+    """Salary structure for each employee (teacher)."""
+    SALARY_TYPE_CHOICES = (
+        ('monthly', 'Monthly'),
+        ('daily', 'Daily'),
+    )
+    EMPLOYMENT_TYPE_CHOICES = (
+        ('permanent', 'Permanent'),
+        ('contract', 'Contract'),
+        ('daily_wager', 'Daily Wager'),
+    )
+
+    employee = models.OneToOneField(TeacherProfile, on_delete=models.CASCADE, related_name='salary_detail')
+    basic_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    salary_type = models.CharField(max_length=10, choices=SALARY_TYPE_CHOICES, default='monthly')
+    employment_type = models.CharField(max_length=15, choices=EMPLOYMENT_TYPE_CHOICES, default='permanent')
+    working_days_per_week = models.PositiveIntegerField(default=6)
+    bank_account = models.CharField(max_length=50, blank=True, default='')
+    bank_name = models.CharField(max_length=100, blank=True, default='')
+
+    # Allowances
+    housing_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    medical_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    transport_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # Per-employee salary config override (overrides global SalaryConfig when enabled)
+    use_custom_config = models.BooleanField(default=False)
+    custom_housing_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    custom_medical_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    custom_transport_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    custom_tax_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    custom_pf_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    custom_security_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    custom_van_child_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    custom_bonus_per_day = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    custom_bonus_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def total_allowances(self):
+        return (self.housing_allowance + self.medical_allowance +
+                self.transport_allowance + self.other_allowance)
+
+    def __str__(self):
+        return f"{self.employee.full_name} - {self.basic_salary}"
+
+
+class MonthlySalary(models.Model):
+    """Monthly salary record for each employee."""
+    PAY_STATUS_CHOICES = (
+        ('paid', 'Paid'),
+        ('unpaid', 'Unpaid'),
+        ('partial', 'Partial'),
+    )
+
+    employee = models.ForeignKey(TeacherProfile, on_delete=models.CASCADE, related_name='monthly_salaries')
+    salary_config = models.ForeignKey(SalaryConfig, on_delete=models.SET_NULL, null=True, blank=True)
+    month = models.PositiveIntegerField()  # 1-12
+    year = models.PositiveIntegerField()
+
+    # Attendance (manually entered by HR)
+    total_working_days = models.PositiveIntegerField(default=26)
+    days_present = models.PositiveIntegerField(default=0)
+    days_absent = models.PositiveIntegerField(default=0)
+    paid_leaves = models.PositiveIntegerField(default=0, help_text="Paid leaves (no salary deduction)")
+    unpaid_leaves = models.PositiveIntegerField(default=0, help_text="Unpaid leaves (salary deducted)")
+    allowed_leaves = models.PositiveIntegerField(default=0, help_text="Auto-calculated from config")
+    late_coming_days = models.PositiveIntegerField(default=0)
+
+    # Month-specific salary config percentages (stored per-month for edit/update)
+    cfg_housing_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cfg_medical_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cfg_transport_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cfg_kids_education_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cfg_tax_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cfg_pf_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cfg_security_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cfg_van_child_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cfg_kid_fee_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cfg_bonus_per_day = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cfg_bonus_pct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    TRANSACTION_TYPE_CHOICES = (
+        ('bank_islami', 'Bank Islami'),
+        ('ubl', 'UBL'),
+        ('cash', 'Cash in Hand'),
+        ('personal', 'Personal Account'),
+    )
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES, default='bank_islami')
+    has_custom_config = models.BooleanField(default=False, help_text="True if per-month overrides were saved via salary config")
+    cfg_mode = models.CharField(max_length=10, choices=SalaryConfig.CONFIG_MODE_CHOICES, default='percentage', help_text="Mode used when this record was saved: percentage or amount")
+
+    # Overtime
+    overtime_hours = models.DecimalField(max_digits=6, decimal_places=2, default=0, help_text="Overtime hours this month")
+    overtime_rate = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Overtime rate per hour")
+
+    # Salary breakdown
+    basic_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    increment = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    per_day_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # Allowances
+    housing_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    medical_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    transport_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    kids_education_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # Deductions
+    leave_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    late_coming_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    advance_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    provident_fund = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    security_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    van_child_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    kid_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tax_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # Bonus
+    bonus_per_day = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Bonus per day if no leaves taken")
+    bonus_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # Totals
+    gross_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    net_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # Status
+    pay_status = models.CharField(max_length=10, choices=PAY_STATUS_CHOICES, default='unpaid')
+    payment_date = models.DateField(null=True, blank=True)
+
+    # Remarks
+    remarks = models.TextField(blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('employee', 'month', 'year')
+        ordering = ['-year', '-month']
+
+    def calculate_salary(self):
+        """Auto-calculate salary based on config and attendance."""
+        emp = self.employee
+        emp_salary_obj = EmployeeSalary.objects.filter(employee=emp).first()
+
+        # Get basic salary from employee profile (teacher's salary field)
+        basic = float(emp.salary if emp.salary > 0 else (emp_salary_obj.basic_salary if emp_salary_obj else 0))
+        self.basic_salary = basic
+
+        # Get config — always prefer the one matching this record's month/year
+        config = SalaryConfig.objects.filter(month=self.month, year=self.year).first()
+        if not config:
+            config = self.salary_config
+        if not config:
+            return
+
+        # Check if this record has month-specific config percentages
+        has_cfg = self.has_custom_config
+
+        # Determine if employee is in first 2 months after joining
+        is_new_employee = False
+        joining_date = getattr(emp, 'joining_date', None)
+        if joining_date:
+            salary_date = date(self.year, self.month, 1)
+            months_since_joining = (salary_date.year - joining_date.year) * 12 + (salary_date.month - joining_date.month)
+            if months_since_joining < 2:
+                is_new_employee = True
+
+        # Allowances — use stored values if custom config, else global config
+        if has_cfg:
+            if self.cfg_mode == 'amount':
+                self.housing_allowance = float(self.cfg_housing_pct)
+                self.medical_allowance = float(self.cfg_medical_pct)
+                self.transport_allowance = float(self.cfg_transport_pct)
+                self.kids_education_allowance = float(self.cfg_kids_education_pct)
+            else:
+                self.housing_allowance = float(basic) * float(self.cfg_housing_pct) / 100
+                self.medical_allowance = float(basic) * float(self.cfg_medical_pct) / 100
+                self.transport_allowance = float(basic) * float(self.cfg_transport_pct) / 100
+                self.kids_education_allowance = float(basic) * float(self.cfg_kids_education_pct) / 100
+        else:
+            self.housing_allowance = config.get_housing(basic)
+            self.medical_allowance = config.get_medical(basic)
+            self.transport_allowance = config.get_transport(basic)
+            self.kids_education_allowance = config.get_kids_education(basic)
+
+        # Calculate per day salary = basic / calendar days in month
+        days_in_month = calendar.monthrange(self.year, self.month)[1]
+        if days_in_month > 0:
+            self.per_day_salary = basic / days_in_month
+
+        # Calculate days_present from natural calendar days - absent only (leaves don't reduce present)
+        self.days_present = max(0, days_in_month - self.days_absent)
+
+        # Set allowed leaves from config
+        self.allowed_leaves = config.max_allowed_leaves
+
+        if is_new_employee:
+            # FIRST 2 MONTHS: Only PF and Van/Child are dead. All others apply.
+            # Leave deduction: 1 paid leave/month, deduction = per_day_salary * (days_absent - 1) if absent > 1
+            unpaid_days = max(0, self.days_absent - 1)
+            self.leave_deduction = self.per_day_salary * unpaid_days
+
+            # Late coming deduction (every N lates = 1 full-day deduction)
+            lates_for_deduct = self.late_coming_days // config.late_deduction_per if config.late_deduction_per > 0 else 0
+            self.late_coming_deduction = lates_for_deduct * self.per_day_salary
+
+            # Security deduction (new employee)
+            if has_cfg:
+                if self.cfg_mode == 'amount':
+                    self.security_deduction = float(self.cfg_security_pct)
+                else:
+                    self.security_deduction = float(basic) * float(self.cfg_security_pct) / 100
+            else:
+                self.security_deduction = config._apply(config.new_employee_security_pct, basic)
+
+            # Only PF and Van/Child are dead for new employees
+            self.provident_fund = 0
+            self.van_child_deduction = 0
+
+            # Bonus: 1 day salary if 0 absent days
+            if self.days_absent == 0:
+                self.bonus_amount = self.per_day_salary
+            else:
+                self.bonus_amount = 0
+
+            # Overtime still applies
+            overtime_pay = float(self.overtime_hours * self.overtime_rate) if self.overtime_hours > 0 and self.overtime_rate > 0 else 0
+
+            # Gross salary = per_day_salary * present_days + all allowances + bonus
+            total_allow = float(self.housing_allowance) + float(self.medical_allowance) + float(self.transport_allowance) + float(self.kids_education_allowance) + float(self.other_allowance)
+            self.gross_salary = (self.per_day_salary * self.days_present) + total_allow + float(self.bonus_amount)
+
+            # Tax deduction
+            if has_cfg:
+                if self.cfg_mode == 'amount':
+                    self.tax_deduction = float(self.cfg_tax_pct)
+                else:
+                    self.tax_deduction = float(self.gross_salary) * float(self.cfg_tax_pct) / 100
+            else:
+                self.tax_deduction = config.get_tax(self.gross_salary)
+
+            # Total deductions = leave + late + van/child + security + tax (no PF for new employees)
+            self.total_deductions = (float(self.leave_deduction) + float(self.late_coming_deduction) +
+                                   float(self.van_child_deduction) + float(self.security_deduction) + float(self.tax_deduction) +
+                                   float(self.advance_deduction) + float(self.other_deduction))
+
+            # Net salary
+            self.net_salary = self.gross_salary - self.total_deductions
+        else:
+            # NORMAL: 3rd month onwards — all deductions apply
+
+            # Leave deduction: 1 paid leave/month, deduction = per_day_salary * (days_absent - 1) if absent > 1
+            unpaid_days = max(0, self.days_absent - 1)
+            self.leave_deduction = self.per_day_salary * unpaid_days
+
+            # Late coming deduction (every N lates = 1 full-day deduction)
+            lates_for_deduct = self.late_coming_days // config.late_deduction_per if config.late_deduction_per > 0 else 0
+            self.late_coming_deduction = lates_for_deduct * self.per_day_salary
+
+            # Bonus: 1 day salary if 0 absent days
+            if self.days_absent == 0:
+                self.bonus_amount = self.per_day_salary
+            else:
+                self.bonus_amount = 0
+
+            # Provident fund
+            if has_cfg:
+                if self.cfg_mode == 'amount':
+                    self.provident_fund = float(self.cfg_pf_pct)
+                else:
+                    self.provident_fund = float(basic) * float(self.cfg_pf_pct) / 100
+            else:
+                self.provident_fund = config.get_pf(basic)
+
+            # Security & Van/Child
+            if has_cfg:
+                if self.cfg_mode == 'amount':
+                    self.security_deduction = float(self.cfg_security_pct)
+                    self.van_child_deduction = float(self.cfg_van_child_pct)
+                else:
+                    self.security_deduction = float(basic) * float(self.cfg_security_pct) / 100
+                    self.van_child_deduction = float(basic) * float(self.cfg_van_child_pct) / 100
+            else:
+                self.security_deduction = config.get_security(basic)
+                self.van_child_deduction = config.get_van_child(basic)
+
+            # Overtime
+            overtime_pay = float(self.overtime_hours * self.overtime_rate) if self.overtime_hours > 0 and self.overtime_rate > 0 else 0
+
+            # Gross salary = per_day_salary * present_days + all allowances + bonus
+            total_allow = float(self.housing_allowance) + float(self.medical_allowance) + float(self.transport_allowance) + float(self.kids_education_allowance) + float(self.other_allowance)
+            self.gross_salary = (self.per_day_salary * self.days_present) + total_allow + float(self.bonus_amount)
+
+            # Tax
+            if has_cfg:
+                if self.cfg_mode == 'amount':
+                    self.tax_deduction = float(self.cfg_tax_pct)
+                else:
+                    self.tax_deduction = float(self.gross_salary) * float(self.cfg_tax_pct) / 100
+            else:
+                self.tax_deduction = config.get_tax(self.gross_salary)
+
+            # Total deductions
+            self.total_deductions = (float(self.leave_deduction) + float(self.late_coming_deduction) +
+                                   float(self.advance_deduction) + float(self.provident_fund) +
+                                   float(self.security_deduction) + float(self.van_child_deduction) +
+                                   float(self.tax_deduction) + float(self.other_deduction))
+
+            # Net salary
+            self.net_salary = self.gross_salary - self.total_deductions
+
+    def save(self, *args, **kwargs):
+        try:
+            self.calculate_salary()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+        super().save(*args, **kwargs)
+
+    @property
+    def total_allowances(self):
+        return (self.housing_allowance + self.medical_allowance +
+                self.transport_allowance + self.kids_education_allowance +
+                self.other_allowance)
+
+    @property
+    def days_in_month(self):
+        return calendar.monthrange(self.year, self.month)[1]
+
+    @property
+    def present_days(self):
+        return max(0, calendar.monthrange(self.year, self.month)[1] - self.days_absent)
+
+    def __str__(self):
+        month_name = calendar.month_name[self.month]
+        return f"{self.employee.full_name} - {month_name} {self.year} - {self.net_salary}"
+
+
+class BankLetterConfig(models.Model):
+    """Editable recipient details for generated bank letters, per transaction type."""
+    TYPE_CHOICES = MonthlySalary.TRANSACTION_TYPE_CHOICES
+
+    DEFAULTS = {
+        'bank_islami': {
+            'recipient_header': 'The Manager,\nBank Islamic Pakistan Limited\nMain Northern Bypass Road, Multan.',
+        },
+        'ubl': {
+            'recipient_header': 'The Manager,\nUnited Bank Limited\nUBL Ameen MA Jinnah Road,\nMultan.',
+        },
+        'cash': {
+            'recipient_header': '',
+        },
+        'personal': {
+            'recipient_header': '',
+        },
+    }
+
+    transaction_type = models.CharField(max_length=20, choices=TYPE_CHOICES, unique=True)
+    recipient_header = models.TextField(blank=True, default='', help_text="Addressed-to block, e.g. The Manager, Bank Name, Branch, City.")
+    subject = models.CharField(max_length=200, default='TRANSFER OF OFFICERS / STAFF PAY')
+    signature_name = models.CharField(max_length=100, default='CEO')
+    signature_org = models.CharField(max_length=200, default='Royal International School System')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def get_for(cls, transaction_type):
+        defaults = cls.DEFAULTS.get(transaction_type, {})
+        obj, _ = cls.objects.get_or_create(
+            transaction_type=transaction_type,
+            defaults={**defaults, 'subject': 'TRANSFER OF OFFICERS / STAFF PAY'},
+        )
+        return obj
+
+    def __str__(self):
+        return f"Bank Letter Config - {self.get_transaction_type_display()}"
+
+
+class EmployeeAttendance(models.Model):
+    """Daily attendance tracking for employees."""
+    STATUS_CHOICES = (
+        ('present', 'Present'),
+        ('absent', 'Absent'),
+        ('leave', 'Leave'),
+        ('half_day', 'Half Day'),
+        ('late', 'Late'),
+    )
+
+    employee = models.ForeignKey(TeacherProfile, on_delete=models.CASCADE, related_name='employee_attendances')
+    date = models.DateField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='present')
+    check_in = models.TimeField(null=True, blank=True)
+    check_out = models.TimeField(null=True, blank=True)
+    remarks = models.CharField(max_length=200, blank=True, default='')
+
+    class Meta:
+        unique_together = ('employee', 'date')
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.employee.full_name} - {self.date} ({self.get_status_display()})"
+
+
+class SeparationRecord(models.Model):
+    """Records when an employee leaves — stores separation details and clearance info."""
+    SEPARATION_REASON_CHOICES = (
+        ('resignation', 'Resignation'),
+        ('termination', 'Termination'),
+        ('contract_end', 'End of Contract'),
+        ('retirement', 'Retirement'),
+        ('other', 'Other'),
+    )
+    CLEARANCE_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+    )
+
+    employee = models.OneToOneField(TeacherProfile, on_delete=models.CASCADE, related_name='separation_record')
+    last_working_date = models.DateField()
+    separation_reason = models.CharField(max_length=20, choices=SEPARATION_REASON_CHOICES, default='resignation')
+    separation_reason_detail = models.TextField(blank=True, default='')
+
+    # Clearance deductions (exit-specific)
+    security_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Security deposit deduction on exit")
+    last_salary_withheld = models.BooleanField(default=False, help_text="Was last salary withheld?")
+    last_salary_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Amount of withheld last salary")
+    additional_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Any other deductions on exit")
+    deduction_reason = models.TextField(blank=True, default='', help_text="Reason for additional deductions")
+
+    # Accumulated totals (from salary history — stored for import/export)
+    total_pf = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total provident fund deducted")
+    total_security = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total security deducted")
+    total_tax = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total tax deducted")
+    total_van_child = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total van/child deducted")
+    total_other = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total other deductions")
+    total_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Grand total accumulated deductions")
+
+    # Clearance status
+    clearance_status = models.CharField(max_length=10, choices=CLEARANCE_STATUS_CHOICES, default='pending')
+    clearance_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def total_exit_deductions(self):
+        total = float(self.security_deduction) + float(self.additional_deductions)
+        if self.last_salary_withheld:
+            total += float(self.last_salary_amount)
+        return total
+
+    def __str__(self):
+        return f"Separation - {self.employee.full_name} ({self.last_working_date})"

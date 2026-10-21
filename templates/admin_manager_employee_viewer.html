@@ -1,0 +1,740 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+    <style>
+        .manager-badge {
+            font-size: 9px; font-weight: 800; letter-spacing: 1px;
+            padding: 3px 8px; border-radius: 20px;
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: #fff; text-transform: uppercase;
+        }
+        .avd-role { background: #7c3aed !important; }
+        .readonly-notice {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 11.5px; color: #7c3aed; font-weight: 600;
+            background: #f5f3ff; border: 1px solid #c4b5fd;
+            padding: 4px 10px; border-radius: 20px;
+            white-space: nowrap;
+        }
+        html, body { overflow-x: hidden; max-width: 100%; }
+        .main { min-width: 0; overflow-x: hidden; }
+        .content { min-width: 0; overflow-x: hidden; }
+        .section { min-width: 0; }
+        .topbar { overflow: visible !important; }
+        .btn-primary { background:#7c3aed !important; color:#fff !important; }
+        .btn-primary:hover { background:#6d28d9 !important; }
+
+        .staff-filter-btn { transition: all 0.15s; }
+        .staff-filter-btn:hover { opacity: 0.85; }
+
+        /* Drawer */
+        #drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;backdrop-filter:blur(2px);}
+        #drawer{position:fixed;top:50%;left:50%;width:600px;max-width:95vw;max-height:90vh;background:#fff;z-index:500;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,.5);display:flex;flex-direction:column;opacity:0;visibility:hidden;transform:translate(-50%,-45%) scale(.95);transition:all .3s cubic-bezier(.4,0,.2,1);}
+        #drawer-header{padding:14px 22px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#1a1d23;}
+        #drawer-title{font-size:15px;font-weight:700;color:#fff;margin:0;}
+        #drawer-close{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.15);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;transition:background .12s;}
+        #drawer-close:hover{background:rgba(255,255,255,.25);}
+        #drawer-body{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 22px;}
+        #drawer-body form{display:flex;flex-direction:column;gap:0;}
+        #drawer-body .form-group,#drawer-body p{margin-bottom:16px;}
+        #drawer-body .form-row{display:grid!important;grid-template-columns:1fr!important;gap:10px!important;}
+        #drawer-body .upload-form .form-group label{text-align:left;}
+        #drawer-body .upload-form .form-group:last-child{flex:0 0 auto;max-width:none;}
+        #drawer-body .upload-form button[type=submit]{width:auto;flex:0 0 auto;}
+        #drawer-body label { display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#6b7280;margin-bottom:6px; }
+        #drawer-body input[type=text],#drawer-body input[type=email],#drawer-body input[type=password],#drawer-body input[type=number],#drawer-body input[type=date],#drawer-body input[type=tel],#drawer-body select,#drawer-body textarea { width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;color:#1a1d23;outline:none;background:#fff;transition:border-color 0.15s;box-sizing:border-box; }
+        #drawer-body input:focus,#drawer-body select:focus,#drawer-body textarea:focus { border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,0.1); }
+        #drawer-body textarea { min-height:100px;resize:vertical; }
+        #drawer-body input[type=submit],#drawer-body button[type=submit] { margin-top:8px;padding:10px 20px;background:#7c3aed;color:#fff;border:none;border-radius:9px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:background 0.15s;width:100%; }
+        #drawer-body input[type=submit]:hover,#drawer-body button[type=submit]:hover { background:#6d28d9; }
+        #drawer-body .staff-info{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;background:#f9fafb;border-radius:12px;}
+        #drawer-body .staff-avatar{width:48px;height:48px;border-radius:50%;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0;}
+        #drawer-body .staff-name{font-size:16px;font-weight:700;color:#1e293b;}
+        #drawer-body .staff-id{font-size:12px;color:#6b7280;margin-top:2px;}
+        #drawer-body .upload-section{margin-bottom:20px;}
+        #drawer-body .upload-section h2{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;}
+        #drawer-body .upload-form{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;}
+        #drawer-body .upload-form .form-group{flex:1 1 0;min-width:0;text-align:left;}
+        #drawer-body .upload-form .form-group label{text-align:left;}
+        #drawer-body .upload-form .form-group:last-child{flex:0 0 auto;max-width:none;}
+        #drawer-body .upload-form button[type=submit]{width:auto;flex:0 0 auto;}
+        #drawer-body .docs-list{background:#f9fafb;border-radius:12px;overflow:hidden;}
+        #drawer-body .docs-header{padding:12px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;font-weight:700;color:#1e293b;}
+        #drawer-body .doc-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e5e7eb;}
+        #drawer-body .doc-item:last-child{border-bottom:none;}
+        #drawer-body .doc-info{display:flex;align-items:center;gap:12px;min-width:0;}
+        #drawer-body .doc-icon{width:36px;height:36px;border-radius:8px;background:#f5f3ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        #drawer-body .doc-icon svg{width:18px;height:18px;color:#7c3aed;}
+        #drawer-body .doc-title{font-size:13px;font-weight:600;color:#1e293b;}
+        #drawer-body .doc-date{font-size:11px;color:#9ca3af;margin-top:2px;}
+        #drawer-body .doc-actions{display:flex;gap:6px;flex-shrink:0;}
+        #drawer-body .doc-actions .btn-sm{padding:5px 10px;font-size:11px;border:none;border-radius:6px;cursor:pointer;font-weight:600;text-decoration:none;display:inline-block;}
+        #drawer-body .doc-actions .btn-primary{background:#7c3aed;color:#fff;}
+        #drawer-body .doc-actions .btn-primary:hover{background:#6d28d9;}
+        #drawer-body .doc-actions .btn-danger{background:#ef4444;color:#fff;}
+        #drawer-body .doc-actions .btn-danger:hover{background:#dc2626;}
+        #drawer-body .empty-state{padding:32px;text-align:center;color:#9ca3af;font-size:13px;}
+        #drawer-body .msg{padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:12px;}
+        #drawer-body .msg-success{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;}
+        #drawer-body .msg-error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+        #drawer-body input[type=file]{padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;}
+        @media (max-width:480px) { #drawer { width:100vw!important;border-radius:16px 16px 0 0!important;top:auto!important;bottom:0!important;left:0!important;right:0!important;transform:none!important;max-height:88vh; } }
+
+        /* Staff table responsive */
+        @media (max-width: 900px) {
+            .staff-table-wrap { overflow-x: hidden !important; }
+            .staff-table-wrap table { min-width: 0 !important; width: 100% !important; }
+            .staff-table-wrap thead { display: none; }
+            .staff-table-wrap tbody tr {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px 16px;
+                padding: 14px;
+                border-bottom: 1px solid #e5e7eb;
+                background: #fff;
+                border-radius: 10px;
+                margin-bottom: 10px;
+                box-shadow: 0 1px 3px rgba(0,0,0,.06);
+            }
+            .staff-table-wrap tbody td {
+                padding: 3px 0;
+                border: none;
+                font-size: 12px;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .staff-table-wrap tbody td::before {
+                content: attr(data-label);
+                display: block;
+                font-size: 10px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: .4px;
+                color: #9ca3af;
+                margin-bottom: 2px;
+            }
+            .staff-table-wrap tbody td[data-label="Salary"] { display: none; }
+            .staff-table-wrap tbody td[data-label="Address"] { grid-column: 1 / -1; }
+            .staff-table-wrap tbody td:last-child {
+                grid-column: 1 / -1;
+                display: flex;
+                gap: 6px;
+                flex-wrap: wrap;
+                padding-top: 6px;
+                border-top: 1px solid #f3f4f6;
+            }
+            .staff-table-wrap tbody td:last-child::before { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- ══════════════════════════════════════════
+     SIDEBAR — Employee Viewer
+══════════════════════════════════════════ -->
+<aside class="sidebar">
+    <div class="sidebar-brand">
+        <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+        </div>
+        <div class="brand-text">
+            <h2>Institution<br>Management</h2>
+            <span>Employee Console</span>
+        </div>
+        <span class="manager-badge">EMP MGR</span>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-label">Overview</div>
+        <a class="nav-item active" href="#" onclick="showSection('dashboard',this);return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Dashboard
+        </a>
+
+        <div class="nav-label">People</div>
+        <a class="nav-item" href="#" onclick="showSection('staff',this);return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Staff
+        </a>
+    </nav>
+
+    <div class="sidebar-user">
+        <div class="user-avatar" style="background:#7c3aed;">{{ request.user.get_full_name|default:request.user.username|first|upper }}</div>
+        <div class="user-info">
+            <h4>{{ request.user.get_full_name|default:request.user.username }}</h4>
+            <p>{{ request.user.email }}</p>
+        </div>
+    </div>
+</aside>
+
+<!-- ══════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════ -->
+<main class="main">
+    <header class="topbar">
+        <h1 id="pageTitle">Dashboard</h1>
+        <div class="topbar-right">
+            <span id="topDate"></span>
+            <div class="avatar-wrap">
+                <div class="admin-top-avatar" id="topAvatarBtn" style="background:#7c3aed;">{{ request.user.get_full_name|default:request.user.username|first|upper }}</div>
+                <div class="avatar-dropdown" id="topAvatarDropdown">
+                    <div class="avd-profile">
+                        <div class="avd-avatar" style="background:#7c3aed;">{{ request.user.get_full_name|default:request.user.username|first|upper }}</div>
+                        <div>
+                            <div class="avd-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+                            <div class="avd-email">{{ request.user.email }}</div>
+                            <span class="avd-role" style="background:#7c3aed;color:#fff;font-size:9px;font-weight:800;padding:2px 8px;border-radius:20px;">EMPLOYEE VIEWER</span>
+                        </div>
+                    </div>
+                    <div class="avd-menu">
+                        <a href="#" class="avd-item" onclick="showSection('dashboard', document.querySelector('.nav-item[onclick*=\'dashboard\']')); closeAllDropdowns(); return false;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                            Dashboard
+                        </a>
+                        <div class="avd-divider"></div>
+                        <a href="{% url 'password_change' %}" class="avd-item">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            Change Password
+                        </a>
+                        <div class="avd-divider"></div>
+                        <form method="post" action="{% url 'logout' %}" style="margin:0;">
+                            {% csrf_token %}
+                            <button type="submit" class="avd-item danger" style="width:100%;border:none;background:none;font-family:inherit;text-align:left;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                Log Out
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="content">
+
+        {% if messages %}
+        {% for message in messages %}
+        <div id="toast-msg" data-section="{{ message.tags }}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- ═══════════ DASHBOARD ═══════════ -->
+        <div id="section-dashboard" class="section active">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                <p style="color:var(--text-secondary);font-size:14px;">Welcome back, <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>. You have access to employee information only.</p>
+                <span class="readonly-notice">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    Employee Viewer
+                </span>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#f5f3ff;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                    <div class="stat-info"><p>Total Staff</p><h3>{{ teachers|length }}</h3></div>
+                </div>
+            </div>
+            <div style="background:var(--white);border-radius:12px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:24px;">
+                <p style="font-size:13px;font-weight:700;margin-bottom:12px;">Quick Actions</p>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                    <a href="#" onclick="showSection('staff',document.querySelector('.nav-item[onclick*=\'staff\']'));return false;" class="btn btn-primary" style="font-size:12px;padding:7px 14px;">View Staff</a>
+                    <a href="#" onclick="openDrawer('{% url 'add_teacher' %}','Add Staff');return false;" class="btn btn-primary" style="font-size:12px;padding:7px 14px;">+ Add Staff</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════ STAFF ═══════════ -->
+        <div id="section-staff" class="section">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+                <h2 style="font-size:15px;font-weight:700;">All Staff</h2>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <span class="readonly-notice">View &amp; Edit Only — No Salary Access</span>
+                    <a href="#" onclick="openDrawer('{% url 'add_teacher' %}','Add Staff');return false;" class="btn btn-primary" style="font-size:12px;padding:7px 14px;">+ Add Staff</a>
+                </div>
+            </div>
+            <!-- Designation filter pills -->
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+                <button class="staff-filter-btn" onclick="filterStaff('all',this)" style="padding:5px 14px;border-radius:20px;border:1px solid #e5e7eb;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">All</button>
+                <button class="staff-filter-btn" onclick="filterStaff('management_staff',this)" style="padding:5px 14px;border-radius:20px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Management Staff</button>
+                <button class="staff-filter-btn" onclick="filterStaff('administration',this)" style="padding:5px 14px;border-radius:20px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Administration</button>
+                <button class="staff-filter-btn" onclick="filterStaff('teacher',this)" style="padding:5px 14px;border-radius:20px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Teacher</button>
+                <button class="staff-filter-btn" onclick="filterStaff('janitorial',this)" style="padding:5px 14px;border-radius:20px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Janitorial</button>
+                {% for value, label in designation_choices %}
+                <button class="staff-filter-btn" onclick="filterStaff('{{ value|escapejs }}',this)" style="padding:5px 14px;border-radius:20px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">{{ label }}</button>
+                {% endfor %}
+            </div>
+            <div style="margin-bottom:14px;">
+                <input type="text" id="staff-search" placeholder="Search by name, ID, phone..." oninput="searchStaff(this.value)" style="width:100%;max-width:360px;padding:9px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+            </div>
+            <div class="staff-table-wrap" style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:1500px;">
+                    <thead>
+                        <tr style="background:#f8fafc;">
+                            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Emp ID</th>
+                            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Full Name</th>
+                            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Father / Husband</th>
+                            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">CNIC</th>
+                            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Gender</th>
+                            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Designation</th>
+                            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Qualification</th>
+                            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Phone</th>
+                            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Email</th>
+                            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Address</th>
+                            <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Joined</th>
+                            <th style="padding:9px 10px;text-align:center;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for teacher in teachers %}
+                        <tr class="staff-card" data-designation="{{ teacher.designation|default:'teacher' }}" data-search="{{ teacher.full_name }} {{ teacher.employee_id|default:'' }} {{ teacher.phone|default:'' }} {{ teacher.get_designation_display|default:'' }}" style="border-bottom:1px solid #f1f5f9;">
+                            <td data-label="Emp ID" style="padding:9px 10px;font-weight:600;white-space:nowrap;">{{ teacher.employee_id|default:"-" }}</td>
+                            <td data-label="Name" style="padding:9px 10px;font-weight:600;white-space:nowrap;">{{ teacher.full_name }}</td>
+                            <td data-label="Father" style="padding:9px 10px;white-space:nowrap;">{{ teacher.father_name|default:teacher.husband_name|default:"-" }}</td>
+                            <td data-label="CNIC" style="padding:9px 10px;white-space:nowrap;">{{ teacher.cnic|default:"-" }}</td>
+                            <td data-label="Gender" style="padding:9px 10px;"><span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;{% if teacher.gender == 'M' %}background:#eff6ff;color:#2563eb;{% else %}background:#fdf4ff;color:#9333ea;{% endif %}">{{ teacher.get_gender_display }}</span></td>
+                            <td data-label="Designation" style="padding:9px 10px;white-space:nowrap;">{{ teacher.get_designation_display|default:teacher.designation|default:"-" }}</td>
+                            <td data-label="Qualification" style="padding:9px 10px;white-space:nowrap;">{{ teacher.qualification|default:"-" }}</td>
+                            <td data-label="Phone" style="padding:9px 10px;white-space:nowrap;">{{ teacher.phone|default:"-" }}</td>
+                            <td data-label="Email" style="padding:9px 10px;white-space:nowrap;">{{ teacher.email|default:"-" }}</td>
+                            <td data-label="Address" style="padding:9px 10px;">{{ teacher.address|default:"-" }}</td>
+                            <td data-label="Joined" style="padding:9px 10px;white-space:nowrap;">{{ teacher.joining_date|default:"-" }}</td>
+                            <td data-label="Actions" style="padding:9px 10px;text-align:center;">
+                                <div style="display:inline-flex;gap:4px;align-items:center;flex-wrap:nowrap;">
+                                    <a href="#" onclick="openDrawer('{% url 'staff_documents' teacher.id %}','Staff Documents — {{ teacher.full_name|escapejs }}');return false;" class="btn btn-primary" style="padding:3px 8px;font-size:10px;white-space:nowrap;">Docs</a>
+                                    <a href="#" onclick="openDrawer('{% url 'edit_teacher' teacher.id %}','Edit Staff — {{ teacher.full_name|escapejs }}');return false;" class="btn btn-yellow" style="padding:3px 8px;font-size:10px;white-space:nowrap;">Edit</a>
+                                    <a href="#" onclick="return deleteStaff('{% url 'delete_teacher' teacher.id %}','{{ teacher.full_name|escapejs }}');" class="btn btn-red" style="padding:3px 8px;font-size:10px;white-space:nowrap;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;cursor:pointer;">Del</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="12" style="text-align:center;color:var(--text-muted);font-size:13px;padding:48px;">No staff found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div id="staff-no-results" style="display:none;text-align:center;color:var(--text-muted);font-size:13px;padding:48px;">No staff match the selected filter.</div>
+        </div>
+
+    </div><!-- end .content -->
+</main>
+
+<!-- ═══════════ DRAWER ═══════════ -->
+<div id="drawer-overlay" onclick="closeDrawer()"></div>
+<div id="drawer">
+    <div id="drawer-header">
+        <div id="drawer-title">Document</div>
+        <button id="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+    <div id="drawer-body"></div>
+</div>
+
+
+<script>
+    function showSection(id, navEl) {
+        document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+        var target = document.getElementById('section-' + id);
+        if (target) target.classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+        if (navEl) navEl.classList.add('active');
+        var title = document.getElementById('pageTitle');
+        if (title) title.textContent = navEl ? navEl.textContent.trim() : 'Dashboard';
+    }
+    function toggleSidebar() {
+        document.querySelector('.sidebar').classList.toggle('show');
+        var ov = document.getElementById('sidebarOverlay');
+        if (ov) ov.classList.toggle('show');
+    }
+    function closeAllDropdowns() {
+        document.querySelectorAll('.avatar-dropdown').forEach(function(d) { d.style.display = 'none'; });
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var section = new URLSearchParams(window.location.search).get('section');
+        if (section) {
+            var nav = document.querySelector('.nav-item[onclick*="' + section + '"]');
+            showSection(section, nav);
+        }
+        var topDate = document.getElementById('topDate');
+        if (topDate) {
+            var d = new Date();
+            var opts = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+            topDate.textContent = d.toLocaleDateString('en-US', opts);
+        }
+        var avatarBtn = document.getElementById('topAvatarBtn');
+        if (avatarBtn) {
+            avatarBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var dd = document.getElementById('topAvatarDropdown');
+                dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+            });
+        }
+        document.addEventListener('click', function(e) {
+            var dd = document.getElementById('topAvatarDropdown');
+            if (dd && !e.target.closest('.avatar-wrap')) dd.style.display = 'none';
+        });
+    });
+
+    /* ── Staff filter + search ── */
+    var activeStaffSearch = '';
+    var STAFF_CATEGORIES = {
+        'management_staff': ['group_head', 'section_head', 'manager', 'assistant_manager', 'a_coordinator', 'director', 'manager_academics', 'hr_manager', 'assistant_manager_academics'],
+        'administration': ['vp', 'team_lead', 'coordinator', 'accountant', 'fdc'],
+        'janitorial': ['aya', 'photocopier', 'office_boy', 'sweeper', 'compositer']
+    };
+    function filterStaff(desig, btn) {
+        if (desig !== undefined) {
+            document.querySelectorAll('.staff-filter-btn').forEach(function(b) {
+                b.style.background = '#fff'; b.style.color = '#374151';
+            });
+            btn.style.background = '#7c3aed'; btn.style.color = '#fff';
+            window._activeStaffDesig = desig;
+        }
+        var d = window._activeStaffDesig || 'all';
+        var q = activeStaffSearch.toLowerCase();
+        var cards = document.querySelectorAll('.staff-card');
+        var visible = 0;
+        var categoryDesignations = STAFF_CATEGORIES[d] || null;
+        cards.forEach(function(card) {
+            var desigVal = card.getAttribute('data-designation') || 'teacher';
+            var matchDesig = d === 'all' || desigVal === d || (categoryDesignations && categoryDesignations.indexOf(desigVal) !== -1);
+            var text = (card.getAttribute('data-search') || card.textContent || '').toLowerCase();
+            var matchSearch = !q || text.indexOf(q) !== -1;
+            var match = matchDesig && matchSearch;
+            card.style.display = match ? '' : 'none';
+            if (match) visible++;
+        });
+        var noResults = document.getElementById('staff-no-results');
+        if (noResults) noResults.style.display = visible === 0 ? 'block' : 'none';
+    }
+    function searchStaff(query) {
+        activeStaffSearch = query;
+        filterStaff();
+    }
+
+    /* ── Drawer ── */
+    window.openDrawer = function(url, title) {
+        var overlay = document.getElementById('drawer-overlay');
+        var drawer = document.getElementById('drawer');
+        var body = document.getElementById('drawer-body');
+        var titleEl = document.getElementById('drawer-title');
+        if (!overlay || !drawer || !body) { window.location.href = url; return; }
+        titleEl.textContent = title || 'Details';
+        overlay.style.display = 'block';
+        drawer.style.visibility = 'visible';
+        drawer.style.opacity = '1';
+        drawer.style.transform = 'translate(-50%,-50%) scale(1)';
+        document.body.style.overflow = 'hidden';
+        body.innerHTML = '<div style="text-align:center;padding:40px;color:#9ca3af;">Loading…</div>';
+        fetch(url, { credentials: 'same-origin' })
+            .then(function(r){ return r.text(); })
+            .then(function(html){
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var container = doc.querySelector('.container') || doc.querySelector('.form-container') || doc.querySelector('.content') || doc.querySelector('main');
+                if (container) {
+                    var backLinks = container.querySelectorAll('a[href*="admin_console"], a[href*="left-employees"]');
+                    backLinks.forEach(function(l) {
+                        if (l.textContent && l.textContent.indexOf('Back') !== -1) {
+                            if (l.parentElement && l.parentElement.children.length === 1) l.parentElement.remove();
+                            else l.remove();
+                        }
+                    });
+                    body.innerHTML = container.innerHTML;
+                } else {
+                    var form = doc.querySelector('form');
+                    body.innerHTML = form ? form.outerHTML : '<p style="color:#dc2626;padding:20px;">Could not load content.</p>';
+                }
+                attachFormHandler(body, url);
+                attachAddMoreHandler(body);
+                attachDeleteHandlers(body);
+                attachUploadHandler(body, url);
+                attachMaritalStatusToggle(body);
+                attachKidsHandler(body);
+                attachSidebarScrollspy(body);
+                var cancelBtn = body.querySelector('.btn-cancel');
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', function(e) { e.preventDefault(); window.closeDrawer(); });
+                }
+            })
+            .catch(function(){
+                body.innerHTML = '<div style="text-align:center;padding:40px;"><p style="color:#dc2626;font-size:13px;margin-bottom:12px;">Failed to load.</p><a href="' + url + '" style="color:#7c3aed;font-weight:600;">Open Full Page Instead</a></div>';
+            });
+    };
+    window.closeDrawer = function() {
+        var overlay = document.getElementById('drawer-overlay');
+        var drawer = document.getElementById('drawer');
+        if (drawer) {
+            drawer.style.opacity = '0';
+            drawer.style.visibility = 'hidden';
+            drawer.style.transform = 'translate(-50%,-45%) scale(.95)';
+        }
+        if (overlay) overlay.style.display = 'none';
+        document.body.style.overflow = '';
+    };
+    /* Delete staff (POST with CSRF) */
+    window.deleteStaff = function(url, name) {
+        if (!confirm('Delete staff member "' + name + '"? This cannot be undone.')) return false;
+        var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        var token = m ? decodeURIComponent(m[1]) : '';
+        var input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!token && input) token = input.value;
+        fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': token }
+        }).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            window.location.href = '{% url "admin_console" %}?section=staff';
+        }).catch(function() {
+            alert('Could not delete staff member. Please try again.');
+        });
+        return false;
+    };
+    /* Handle AJAX form submissions inside drawer */
+    function attachAddMoreHandler(container) {
+        var addBtn = container.querySelector('#add-doc-row');
+        if (!addBtn || addBtn.dataset.ajaxBound) return;
+        addBtn.dataset.ajaxBound = '1';
+        addBtn.addEventListener('click', function () {
+            var docRows = container.querySelector('#doc-rows');
+            if (!docRows) return;
+            var row = docRows.querySelector('.form-row');
+            if (!row) return;
+            var newRow = row.cloneNode(true);
+            newRow.querySelectorAll('input').forEach(function (inp) { inp.value = ''; });
+            docRows.appendChild(newRow);
+        });
+    }
+    function attachDeleteHandlers(container) {
+        container.querySelectorAll('.js-delete-doc').forEach(function(link) {
+            if (link.dataset.ajaxBound) return;
+            link.dataset.ajaxBound = '1';
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var href = link.getAttribute('href');
+                if (!confirm('Delete this document?')) return;
+                var row = link.closest('.doc-item');
+                fetch(href, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r) { return r.json(); })
+                    .then(function() {
+                        if (row) {
+                            row.style.transition = 'opacity 0.2s';
+                            row.style.opacity = '0';
+                            setTimeout(function() {
+                                row.remove();
+                                var list = container.querySelector('.docs-list');
+                                if (list) {
+                                    var remaining = list.querySelectorAll('.doc-item').length;
+                                    var header = list.querySelector('.docs-header');
+                                    if (header) header.textContent = 'Uploaded Documents (' + remaining + ')';
+                                }
+                            }, 200);
+                        }
+                    })
+                    .catch(function() {});
+            });
+        });
+    }
+    function attachUploadHandler(container, originalUrl) {
+        var form = container.querySelector('form.upload-form');
+        if (!form || form.dataset.ajaxBound) return;
+        form.dataset.ajaxBound = '1';
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(form);
+            var btn = form.querySelector('[type="submit"]');
+            var origText = btn ? btn.textContent : '';
+            if (btn) { btn.textContent = 'Uploading...'; btn.disabled = true; }
+            fetch(form.action || originalUrl, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(function(r) {
+                var ct = r.headers.get('content-type') || '';
+                if (ct.indexOf('application/json') !== -1) {
+                    return r.json().then(function(data) {
+                        if (data.ok) {
+                            openDrawer(originalUrl, document.getElementById('drawer-title').textContent);
+                        } else {
+                            alert(data.msg || 'Upload failed.');
+                            if (btn) { btn.textContent = origText; btn.disabled = false; }
+                        }
+                    });
+                }
+                return r.text().then(function() {
+                    openDrawer(originalUrl, document.getElementById('drawer-title').textContent);
+                });
+            }).catch(function() {
+                if (btn) { btn.textContent = origText; btn.disabled = false; }
+                alert('Upload failed. Please try again.');
+            });
+        });
+    }
+    function attachFormHandler(container, originalUrl) {
+        var form = container.querySelector('form:not(.upload-form)');
+        if (!form) return;
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(form);
+            fetch(form.action || originalUrl, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(function(r){
+                var ct = r.headers.get('content-type') || '';
+                if (ct.indexOf('application/json') !== -1) {
+                    return r.json().then(function(data){
+                        if (data.ok) { closeDrawer(); location.reload(); }
+                        else {
+                            var errs = '';
+                            if (data.errors) {
+                                try { var parsed = JSON.parse(data.errors); for (var f in parsed) errs += f + ': ' + parsed[f].map(function(e){return e.message;}).join(', ') + '\n'; } catch(ex) { errs = JSON.stringify(data.errors); }
+                            }
+                            alert(errs || 'Update failed. Please check the form.');
+                        }
+                    });
+                }
+                return r.text().then(function(html){
+                    var parser = new DOMParser();
+                    var doc = parser.parseFromString(html, 'text/html');
+                    var c2 = doc.querySelector('.container') || doc.querySelector('.form-container') || doc.querySelector('.content') || doc.querySelector('main');
+                    if (c2) { body.innerHTML = c2.innerHTML; }
+                    else { var f2 = doc.querySelector('form'); body.innerHTML = f2 ? f2.outerHTML : html; }
+                    attachFormHandler(body, originalUrl);
+                    attachAddMoreHandler(body);
+                    attachDeleteHandlers(body);
+                    attachUploadHandler(body, originalUrl);
+                    body.scrollTop = 0;
+                });
+            }).catch(function(){
+                form.submit();
+            });
+        });
+    }
+    function attachMaritalStatusToggle(root) {
+        var statusField = root.querySelector('[name="marital_status"]');
+        var genderField = root.querySelector('[name="gender"]');
+        var husbandInfo = root.querySelector('#husband-info');
+        var kidsSection = root.querySelector('#kids-section');
+        var numChildrenRow = root.querySelector('#num-children-row');
+        if (!statusField) return;
+        function toggleFields() {
+            var v = statusField.value;
+            var g = genderField ? genderField.value : 'M';
+            var show = v !== 'single';
+            if (husbandInfo) husbandInfo.style.display = v === 'married' ? '' : 'none';
+            if (kidsSection) kidsSection.style.display = show ? '' : 'none';
+            if (numChildrenRow) numChildrenRow.style.display = (g === 'F' && show) ? '' : 'none';
+        }
+        toggleFields();
+        statusField.addEventListener('change', toggleFields);
+        if (genderField) genderField.addEventListener('change', toggleFields);
+    }
+    function attachKidsHandler(root) {
+        var kidsList = root.querySelector('#kids-list');
+        var kidsJson = root.querySelector('#kids_json');
+        var addKidBtn = root.querySelector('#add-kid-btn');
+        if (!kidsList || !kidsJson) return;
+        var kids = [];
+        try { kids = JSON.parse(kidsJson.value || '[]'); } catch(e) { kids = []; }
+        function renderKids() {
+            kidsList.innerHTML = '';
+            kids.forEach(function(kid, i) {
+                var row = document.createElement('div');
+                row.style.cssText = 'display:flex;gap:10px;align-items:flex-end;margin-bottom:10px;flex-wrap:wrap;';
+                row.innerHTML =
+                    '<div class="form-group" style="flex:1;min-width:150px;margin-bottom:0;"><label>Child Name</label><input type="text" data-kid="'+i+'" data-field="name" value="'+(kid.name||'')+'" style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>' +
+                    '<div class="form-group" style="flex:0 0 140px;min-width:0;margin-bottom:0;"><label>Date of Birth</label><input type="date" data-kid="'+i+'" data-field="dob" value="'+(kid.dob||'')+'" style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>' +
+                    '<div class="form-group" style="flex:0 0 100px;min-width:0;margin-bottom:0;"><label>Gender</label><select data-kid="'+i+'" data-field="gender" style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;box-sizing:border-box;"><option value="M"'+(kid.gender==='M'?' selected':'')+'>Boy</option><option value="F"'+(kid.gender==='F'?' selected':'')+'>Girl</option></select></div>' +
+                    '<div class="form-group" style="flex:0 0 110px;min-width:0;margin-bottom:0;"><label>Relationship</label><select data-kid="'+i+'" data-field="relationship" style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;box-sizing:border-box;"><option value="son"'+(kid.relationship==='son'?' selected':'')+'>Son</option><option value="daughter"'+(kid.relationship==='daughter'?' selected':'')+'>Daughter</option></select></div>' +
+                    '<div class="form-group" style="flex:0 0 130px;min-width:0;margin-bottom:0;"><label>B-Form/CRC No.</label><input type="text" data-kid="'+i+'" data-field="bform" value="'+(kid.bform||'')+'" style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>' +
+                    '<div class="form-group" style="flex:0 0 140px;min-width:0;margin-bottom:0;"><label>School/College</label><input type="text" data-kid="'+i+'" data-field="school" value="'+(kid.school||'')+'" style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>' +
+                    '<div class="form-group" style="flex:0 0 110px;min-width:0;margin-bottom:0;"><label>Class/Grade</label><input type="text" data-kid="'+i+'" data-field="class_grade" value="'+(kid.class_grade||'')+'" style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>' +
+                    '<button type="button" class="remove-kid" data-idx="'+i+'" style="padding:8px 12px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:8px;cursor:pointer;font-size:13px;flex-shrink:0;">\u2715</button>';
+                kidsList.appendChild(row);
+            });
+            kidsJson.value = JSON.stringify(kids);
+        }
+        kidsList.addEventListener('input', function(e) {
+            var el = e.target;
+            var i = parseInt(el.dataset.kid);
+            var f = el.dataset.field;
+            if (!isNaN(i) && f) { kids[i][f] = el.value; kidsJson.value = JSON.stringify(kids); }
+        });
+        kidsList.addEventListener('click', function(e) {
+            var btn = e.target.closest('.remove-kid');
+            if (!btn) return;
+            kids.splice(parseInt(btn.dataset.idx), 1);
+            renderKids();
+        });
+        if (addKidBtn) addKidBtn.addEventListener('click', function() {
+            kids.push({name:'', dob:'', gender:'M', relationship:'son', bform:'', school:'', class_grade:''});
+            renderKids();
+        });
+        renderKids();
+    }
+    function attachSidebarScrollspy(root) {
+        if (!document.getElementById('drawer-mobile-css')) {
+            var s = document.createElement('style');
+            s.id = 'drawer-mobile-css';
+            s.textContent = '@media(max-width:700px){#drawer-body .upload-form{flex-direction:column !important;}#drawer-body .upload-form .form-group{max-width:100% !important;flex:1 1 100% !important;}#drawer-body .form-row{grid-template-columns:1fr !important;}#drawer-body .doc-row{flex-direction:column !important;align-items:stretch !important;}#drawer-body .doc-row .form-group{min-width:0;flex:1 1 100% !important;}#drawer-body .doc-item{flex-direction:column;align-items:flex-start;gap:10px;}#drawer-body .doc-actions{width:100%;}#drawer-body .doc-actions .btn{flex:1;text-align:center;}}';
+            document.head.appendChild(s);
+        }
+        var sidebar = root.querySelector('.form-sidebar');
+        var main = root.querySelector('.form-main') || root;
+        if (!sidebar) return;
+        if (!document.getElementById('staff-form-sidebar-css')) {
+            var style = document.createElement('style');
+            style.id = 'staff-form-sidebar-css';
+            style.textContent = '#drawer > div:first-child{position:relative;z-index:20;}#drawer-body .form-sidebar{width:180px;background:#0f2744;padding:16px 0;flex-shrink:0;position:absolute;left:0;top:60px;bottom:0;z-index:10;border-radius:0 0 0 16px;}#drawer-body .form-sidebar a{display:flex;align-items:center;padding:10px 20px;font-size:13px;font-weight:600;color:rgba(255,255,255,0.5);text-decoration:none;transition:all .15s;border-left:3px solid transparent;}#drawer-body .form-sidebar a:hover{color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.06);}#drawer-body .form-sidebar a.active{color:#fff;background:rgba(20,184,166,0.15);border-left-color:#14b8a6;}#drawer-body .form-main{margin-left:180px;padding:0;min-width:0;overflow-y:auto;max-height:70vh;}#drawer-body .form-section{scroll-margin-top:10px;padding:20px 24px;}#drawer-body .form-section+.form-section{border-top:1px solid #f3f4f6;}#drawer-body .form-footer{padding:14px 24px;border-top:1px solid #f3f4f6;display:flex;gap:10px;justify-content:flex-end;}#drawer-body .btn-save{padding:10px 28px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;font-family:inherit;}#drawer-body .btn-save:hover{background:#6d28d9;}#drawer-body .btn-cancel{padding:10px 20px;background:#fff;color:#6b7280;border:1.5px solid #e5e7eb;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;font-family:inherit;}#drawer-body .btn-cancel:hover{background:#f9fafb;color:#374151;}#drawer-body .husband-section .section-title{color:#9333ea;border-bottom-color:#faf5ff;}#drawer-body .kids-section .section-title{color:#9333ea;border-bottom-color:#faf5ff;}#drawer-body .section-title{font-size:13px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin:0 0 14px;padding-bottom:6px;border-bottom:2px solid #f5f3ff;}@media(max-width:700px){#drawer-body .form-sidebar{width:100%;border-right:none;border-bottom:1px solid rgba(255,255,255,0.1);display:flex;overflow-x:auto;padding:0;position:static;border-radius:0;top:0;}#drawer-body .form-sidebar a{border-left:none;border-bottom:3px solid transparent;white-space:nowrap;padding:12px 16px;}#drawer-body .form-sidebar a.active{border-bottom-color:#14b8a6;border-left-color:transparent;}#drawer-body .form-main{margin-left:0;}}';
+            document.head.appendChild(style);
+        }
+        var links = sidebar.querySelectorAll('a[data-section]');
+        if (!links.length) return;
+        links.forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                var id = this.getAttribute('data-section');
+                var sec = root.querySelector('#' + id);
+                if (sec) sec.scrollIntoView({behavior:'smooth', block:'start'});
+            });
+        });
+        var sections = [];
+        links.forEach(function(link) {
+            var id = link.getAttribute('data-section');
+            var sec = root.querySelector('#' + id);
+            if (sec) sections.push({el:sec, link:link});
+        });
+        function onScroll() {
+            var scrollTop = main.scrollTop;
+            var active = sections[0];
+            for (var i = 0; i < sections.length; i++) {
+                if (sections[i].el.offsetTop - main.offsetTop <= scrollTop + 60) {
+                    active = sections[i];
+                }
+            }
+            links.forEach(function(l) { l.classList.remove('active'); });
+            if (active) active.link.classList.add('active');
+        }
+        main.addEventListener('scroll', onScroll);
+        onScroll();
+    }
+</script>
+</body>
+</html>

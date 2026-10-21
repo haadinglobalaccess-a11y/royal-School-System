@@ -1,0 +1,306 @@
+{% extends "hr/base_hr.html" %}
+
+{% block back_link %}{% endblock back_link %}
+
+{% block content %}
+<!-- Employee Info -->
+<div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;background:var(--white);border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+    <div style="width:48px;height:48px;border-radius:50%;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    </div>
+    <div style="flex:1;">
+        <div style="font-size:16px;font-weight:700;">{{ employee.full_name }}</div>
+        <div style="font-size:12px;color:var(--text-muted);">ID: {{ employee.employee_id|default:"Not assigned" }} | {{ employee.get_designation_display|default:employee.designation|default:"-" }}</div>
+    </div>
+</div>
+
+<!-- Employee Details -->
+<div class="card">
+    <div class="card-header">
+        <h2>Employee Details</h2>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Joining Date</label>
+            <input type="text" class="form-control" value="{{ employee.joining_date|default:'-' }}" readonly style="background:#f9fafb;">
+        </div>
+        <div class="form-group">
+            <label>Last Working Date</label>
+            <input type="text" class="form-control" value="{{ separation.last_working_date }}" readonly style="background:#f9fafb;">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Reason for Leaving</label>
+            <input type="text" class="form-control" value="{{ separation.get_separation_reason_display }}" readonly style="background:#f9fafb;">
+        </div>
+        <div class="form-group">
+            <label>Salary (Last Month Before Leaving)</label>
+            {% if last_salary %}
+            <input type="text" class="form-control" value="PKR {{ last_salary.net_salary|floatformat:0 }} ({{ last_salary.get_month_display }} {{ last_salary.year }})" readonly style="background:#f9fafb;">
+            {% else %}
+            <input type="text" class="form-control" value="No salary record found" readonly style="background:#f9fafb;">
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Accumulated Deductions -->
+<div class="card">
+    <div class="card-header">
+        <h2>Total Deductions (From Joining Date)</h2>
+        <span class="badge badge-blue">{{ salary_count }} salary record{{ salary_count|pluralize }}</span>
+    </div>
+
+    <div class="stat-grid" style="margin-bottom:0;">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#eff6ff;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            </div>
+            <div class="stat-info">
+                <p>Total Provident Fund</p>
+                <h3 class="amount">PKR {{ salary_totals.total_pf|floatformat:0 }}</h3>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fef2f2;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <div class="stat-info">
+                <p>Total Security</p>
+                <h3 class="amount">PKR {{ salary_totals.total_security|floatformat:0 }}</h3>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fdf4ff;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9333ea" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            </div>
+            <div class="stat-info">
+                <p>Total Tax</p>
+                <h3 class="amount">PKR {{ salary_totals.total_tax|floatformat:0 }}</h3>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fffbeb;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div>
+            <div class="stat-info">
+                <p>Total Van/Child</p>
+                <h3 class="amount">PKR {{ salary_totals.total_van_child|floatformat:0 }}</h3>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#f0fdf4;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+            </div>
+            <div class="stat-info">
+                <p>Total Other</p>
+                <h3 class="amount">PKR {{ salary_totals.total_other|floatformat:0 }}</h3>
+            </div>
+        </div>
+        <div class="stat-card" style="border:2px solid var(--red);">
+            <div class="stat-icon" style="background:#fef2f2;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="stat-info">
+                <p>Grand Total Deductions</p>
+                <h3 class="amount" style="color:var(--red);">PKR {{ salary_totals.total_deductions|floatformat:0 }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Exit Clearance Form -->
+<div class="card">
+    <div class="card-header">
+        <h2>Exit Clearance</h2>
+        {% if separation.clearance_status == 'completed' %}
+            <span class="badge badge-green">Cleared on {{ separation.clearance_date }}</span>
+        {% else %}
+            <span class="badge badge-red">Pending</span>
+        {% endif %}
+    </div>
+
+    <form method="post" data-pdf-info='{"name":"{{ employee.full_name|escapejs }}","id":"{{ employee.employee_id|default:"N/A"|escapejs }}","designation":"{{ employee.get_designation_display|default:employee.designation|default:"-"|escapejs }}","lastDate":"{{ separation.last_working_date|escapejs }}","pf":"{{ salary_totals.total_pf|floatformat:0 }}","security":"{{ salary_totals.total_security|floatformat:0 }}","tax":"{{ salary_totals.total_tax|floatformat:0 }}","vanChild":"{{ salary_totals.total_van_child|floatformat:0 }}","other":"{{ salary_totals.total_other|floatformat:0 }}","grandTotal":"{{ salary_totals.total_deductions|floatformat:0 }}"}'>
+        {% csrf_token %}
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Security Deposit Deduction (PKR)</label>
+                <input type="number" name="security_deduction" class="form-control" step="0.01" value="{{ form.security_deduction.value|default:'0' }}">
+            </div>
+            <div class="form-group">
+                <label>Last Salary Withheld</label>
+                <div style="display:flex;align-items:center;gap:12px;margin-top:4px;">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                        <input type="checkbox" name="last_salary_withheld" value="true" {% if form.last_salary_withheld.value %}checked{% endif %} onchange="document.getElementById('lastSalaryAmt').style.display=this.checked?'block':'none';">
+                        Yes, last salary is withheld
+                    </label>
+                </div>
+                <div id="lastSalaryAmt" style="margin-top:8px;{% if not form.last_salary_withheld.value %}display:none;{% endif %}">
+                    <input type="number" name="last_salary_amount" class="form-control" step="0.01" value="{{ form.last_salary_amount.value|default:'0' }}" placeholder="Enter withheld amount">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Additional Deductions (PKR)</label>
+                <input type="number" name="additional_deductions" class="form-control" step="0.01" value="{{ form.additional_deductions.value|default:'0' }}">
+            </div>
+            <div class="form-group">
+                <label>Clearance Status</label>
+                <select name="clearance_status" class="form-control">
+                    <option value="pending" {% if form.clearance_status.value == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="completed" {% if form.clearance_status.value == 'completed' %}selected{% endif %}>Completed</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Clearance Date</label>
+            <input type="date" name="clearance_date" class="form-control" value="{{ form.clearance_date.value|default:'' }}">
+        </div>
+
+        <div style="text-align:center;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
+            <button type="submit" class="btn btn-primary" style="width:100%;padding:12px 40px;font-size:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save Clearance
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var form = document.querySelector('form');
+    if (!form) return;
+    form.addEventListener('submit', function(e) {
+        var status = form.querySelector('[name=clearance_status]');
+        if (!status || status.value !== 'completed') return;
+        if (!window.jspdf) return;
+        e.preventDefault();
+        var btn = form.querySelector('[type=submit]');
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+        var formData = new FormData(form);
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', window.location.href, true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== 4) return;
+            if (xhr.status === 200 || xhr.status === 302) {
+                var info = JSON.parse(form.getAttribute('data-pdf-info'));
+                var secDed = parseFloat(form.querySelector('[name=security_deduction]').value) || 0;
+                var lastWithheld = form.querySelector('[name=last_salary_withheld]').checked;
+                var lastAmt = parseFloat(form.querySelector('[name=last_salary_amount]').value) || 0;
+                var addDed = parseFloat(form.querySelector('[name=additional_deductions]').value) || 0;
+                var clearDate = form.querySelector('[name=clearance_date]').value || 'N/A';
+                var jsPDF = window.jspdf.jsPDF;
+                var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                var pw = doc.internal.pageSize.getWidth();
+                var y = 0;
+                doc.setFillColor(13, 148, 136);
+                doc.rect(0, 0, pw, 32, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(15);
+                doc.text('Employee Clearance Certificate', pw / 2, 13, { align: 'center' });
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.text('Generated: ' + new Date().toLocaleDateString(), pw / 2, 22, { align: 'center' });
+                y = 42;
+                doc.setFillColor(249, 250, 251);
+                doc.rect(10, y - 5, pw - 20, 30, 'F');
+                doc.setTextColor(26, 29, 35);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.text('Employee: ' + info.name, 15, y + 3);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(100, 100, 100);
+                doc.text('ID: ' + info.id, 15, y + 10);
+                doc.text('Designation: ' + info.designation, 15, y + 16);
+                doc.text('Last Working Date: ' + info.lastDate, 15, y + 22);
+                y += 35;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.setTextColor(26, 29, 35);
+                doc.text('Accumulated Deductions', 15, y);
+                y += 3;
+                doc.setDrawColor(13, 148, 136);
+                doc.setLineWidth(0.5);
+                doc.line(15, y, pw - 15, y);
+                y += 7;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                var deductions = [
+                    ['Provident Fund', info.pf],
+                    ['Security', info.security],
+                    ['Tax', info.tax],
+                    ['Van/Child Deductions', info.vanChild],
+                    ['Other Deductions', info.other],
+                    ['Grand Total Deductions', info.grandTotal]
+                ];
+                deductions.forEach(function(d) {
+                    doc.setTextColor(80, 80, 80);
+                    doc.text(d[0], 20, y);
+                    doc.setTextColor(26, 29, 35);
+                    doc.text('PKR ' + Number(d[1]).toLocaleString(), pw - 20, y, { align: 'right' });
+                    y += 6;
+                });
+                y += 5;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.setTextColor(26, 29, 35);
+                doc.text('Exit Clearance', 15, y);
+                y += 3;
+                doc.setDrawColor(13, 148, 136);
+                doc.line(15, y, pw - 15, y);
+                y += 7;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                var exitItems = [
+                    ['Security Deposit Deduction', 'PKR ' + secDed.toLocaleString()],
+                    ['Last Salary Withheld', lastWithheld ? 'Yes' : 'No'],
+                    ['Last Salary Amount', lastWithheld ? 'PKR ' + lastAmt.toLocaleString() : 'N/A'],
+                    ['Additional Deductions', 'PKR ' + addDed.toLocaleString()],
+                    ['Clearance Date', clearDate]
+                ];
+                exitItems.forEach(function(item) {
+                    doc.setTextColor(80, 80, 80);
+                    doc.text(item[0], 20, y);
+                    doc.setTextColor(26, 29, 35);
+                    doc.text(item[1], pw - 20, y, { align: 'right' });
+                    y += 6;
+                });
+                y += 5;
+                var totalExit = secDed + addDed + (lastWithheld ? lastAmt : 0);
+                doc.setFillColor(254, 226, 226);
+                doc.rect(10, y - 5, pw - 20, 12, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.setTextColor(220, 38, 38);
+                doc.text('Total Exit Deductions:', 20, y + 2);
+                doc.text('PKR ' + totalExit.toLocaleString(), pw - 20, y + 2, { align: 'right' });
+                y += 18;
+                doc.setFillColor(240, 253, 244);
+                doc.rect(10, y - 5, pw - 20, 12, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.setTextColor(22, 163, 74);
+                doc.text('Clearance Status: COMPLETED', pw / 2, y + 2, { align: 'center' });
+                var safeName = info.name.replace(/[^a-zA-Z0-9]/g, '_');
+                doc.save('clearance_' + safeName + '_' + new Date().toISOString().slice(0, 10) + '.pdf');
+                window.location.href = '/admin-console/?section=left-employees';
+            } else {
+                if (btn) { btn.disabled = false; btn.textContent = 'Save Clearance'; }
+                alert('Error saving. Please try again.');
+            }
+        };
+        xhr.send(formData);
+    });
+})();
+</script>
+{% endblock %}

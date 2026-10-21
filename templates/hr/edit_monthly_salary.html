@@ -1,0 +1,166 @@
+{% extends "hr/base_hr.html" %}
+
+{% block content %}
+<div class="hr-topbar">
+    <div>
+        <h1>Edit Salary — {{ salary.employee.full_name }}</h1>
+        <div class="breadcrumb">HR Module / Salary Sheet / Edit</div>
+    </div>
+</div>
+
+<div class="card">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+        <div style="width:50px;height:50px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;">{{ salary.employee.full_name|first|upper }}</div>
+        <div>
+            <div style="font-size:15px;font-weight:700;">{{ salary.employee.full_name }}</div>
+            <div style="font-size:12px;color:var(--text-muted);">ID: {{ salary.employee.employee_id|default:"-" }} | {{ salary.get_month_display }} {{ salary.year }}</div>
+        </div>
+    </div>
+
+    <form method="post" id="salaryForm">
+        {% csrf_token %}
+
+        <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;">Attendance</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Total Working Days</label>
+                <input type="number" name="total_working_days" id="total_working_days" value="{{ salary.total_working_days }}" min="1" max="31" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Days Absent</label>
+                <input type="number" name="days_absent" id="days_absent" value="{{ salary.days_absent }}" min="0" class="form-control" onchange="calcPresent()">
+            </div>
+            <div class="form-group">
+                <label>Paid Leaves</label>
+                <input type="number" name="paid_leaves" id="paid_leaves" value="{{ salary.paid_leaves }}" min="0" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Unpaid Leaves</label>
+                <input type="number" name="unpaid_leaves" id="unpaid_leaves" value="{{ salary.unpaid_leaves }}" min="0" class="form-control" onchange="calcPresent()">
+            </div>
+            <div class="form-group">
+                <label>Late Coming Days</label>
+                <input type="number" name="late_coming_days" value="{{ salary.late_coming_days }}" min="0" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Days Present (auto)</label>
+                <input type="number" id="days_present_display" value="{{ salary.days_present }}" class="form-control" readonly style="background:#f3f4f6;font-weight:700;">
+            </div>
+        </div>
+
+        <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;">Allowances</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Housing Allowance (PKR)</label>
+                <input type="number" name="housing_allowance" value="{{ salary.housing_allowance }}" step="0.01" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Medical Allowance (PKR)</label>
+                <input type="number" name="medical_allowance" value="{{ salary.medical_allowance }}" step="0.01" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Transport Allowance (PKR)</label>
+                <input type="number" name="transport_allowance" value="{{ salary.transport_allowance }}" step="0.01" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Kids Education Allowance (PKR)</label>
+                <input type="number" name="kids_education_allowance" value="{{ salary.kids_education_allowance }}" step="0.01" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Other Allowance (PKR)</label>
+                <input type="number" name="other_allowance" value="{{ salary.other_allowance }}" step="0.01" class="form-control">
+            </div>
+        </div>
+
+        <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;">Earnings</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Increment (PKR)</label>
+                <input type="number" name="increment" value="{{ salary.increment }}" step="0.01" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Overtime Hours</label>
+                <input type="number" name="overtime_hours" value="{{ salary.overtime_hours }}" step="0.01" min="0" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Overtime Rate (PKR/hour)</label>
+                <input type="number" name="overtime_rate" value="{{ salary.overtime_rate }}" step="0.01" min="0" class="form-control">
+            </div>
+        </div>
+
+        <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;">Deductions</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Advance Deduction (PKR)</label>
+                <input type="number" name="advance_deduction" value="{{ salary.advance_deduction }}" step="0.01" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Provident Fund (PKR)</label>
+                <input type="number" name="provident_fund" value="{{ salary.provident_fund }}" step="0.01" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Security Deduction (PKR)</label>
+                <input type="number" name="security_deduction" value="{{ salary.security_deduction }}" step="0.01" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Van / Child Charges (PKR)</label>
+                <input type="number" name="van_child_deduction" value="{{ salary.van_child_deduction }}" step="0.01" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Other Deduction (PKR)</label>
+                <input type="number" name="other_deduction" value="{{ salary.other_deduction }}" step="0.01" class="form-control">
+            </div>
+        </div>
+
+        <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;">Status & Remarks</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Pay Status</label>
+                <select name="pay_status" class="form-control">
+                    <option value="unpaid" {% if salary.pay_status == 'unpaid' %}selected{% endif %}>Unpaid</option>
+                    <option value="paid" {% if salary.pay_status == 'paid' %}selected{% endif %}>Paid</option>
+                    <option value="partial" {% if salary.pay_status == 'partial' %}selected{% endif %}>Partial</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Payment Date</label>
+                <input type="date" name="payment_date" value="{{ salary.payment_date|date:'Y-m-d'|default:'' }}" class="form-control">
+            </div>
+            <div class="form-group" style="grid-column:span 2;">
+                <label>Remarks</label>
+                <input type="text" name="remarks" value="{{ salary.remarks }}" class="form-control">
+            </div>
+        </div>
+
+        <!-- Auto-calculated summary -->
+        <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:14px 18px;margin:20px 0;">
+            <div style="font-size:13px;font-weight:700;color:#0d9488;margin-bottom:8px;">Auto-Calculated Summary (saves on submit)</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;font-size:12px;">
+                <div>Per Day: <strong>PKR {{ salary.per_day_salary|floatformat:2 }}</strong></div>
+                <div>Leave Ded: <strong style="color:var(--red);">PKR {{ salary.leave_deduction|floatformat:0 }}</strong></div>
+                <div>Late Ded: <strong style="color:var(--red);">PKR {{ salary.late_coming_deduction|floatformat:0 }}</strong></div>
+                <div>Tax Ded: <strong style="color:var(--red);">PKR {{ salary.tax_deduction|floatformat:0 }}</strong></div>
+                <div>Bonus: <strong style="color:var(--green);">PKR {{ salary.bonus_amount|floatformat:0 }}</strong></div>
+                <div>Gross: <strong>PKR {{ salary.gross_salary|floatformat:0 }}</strong></div>
+                <div>Total Ded: <strong style="color:var(--red);">PKR {{ salary.total_deductions|floatformat:0 }}</strong></div>
+                <div style="font-size:14px;">Net: <strong style="color:var(--green);">PKR {{ salary.net_salary|floatformat:0 }}</strong></div>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:20px;">
+            <button type="submit" class="btn btn-primary">Update Salary</button>
+            <a href="{% url 'hr_monthly_salary_list' %}" class="btn btn-ghost">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+function calcPresent() {
+    var working = parseInt(document.getElementById('total_working_days').value) || 0;
+    var absent = parseInt(document.getElementById('days_absent').value) || 0;
+    var unpaid = parseInt(document.getElementById('unpaid_leaves').value) || 0;
+    var present = Math.max(0, working - absent - unpaid);
+    document.getElementById('days_present_display').value = present;
+}
+</script>
+{% endblock %}
